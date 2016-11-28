@@ -52,8 +52,11 @@ module Bot
 
       # Deletes Discord channels for the game
       def delete_channels
-        text_channel.delete
-        voice_channel.delete
+        text_channel.delete if text_channel
+        voice_channel.delete if voice_channel
+      rescue
+        # Silently fail if we can't delete channels
+        # for some reason (we lost perms somehow)
       end
 
       # Starts a game
@@ -150,6 +153,19 @@ module Bot
       # Returns answers that haven't been put into the game yet
       def available_answers
         answers - answers_in_game
+      end
+
+      # Generates an embedded scoreboard
+      def generate_embed
+        embed = Discordrb::Webhooks::Embed.new
+        embed.title = 'Scores'
+        embed.color = 44783
+        ladder = (1..players.count).to_a.join "\n"
+        pl = Player.where(game: self).all.sort_by(&:score).reverse
+        embed.add_field name: '#', value: ladder, inline: true
+        embed.add_field name: 'Name', value: pl.collect(&:discord_name).join("\n"), inline: true
+        embed.add_field name: 'Score', value: pl.collect(&:score).join("\n"), inline: true
+        embed
       end
     end
   end

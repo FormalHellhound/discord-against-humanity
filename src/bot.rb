@@ -6,6 +6,9 @@ require "open-uri"
 
 # The main bot module.
 module Bot
+  # Load integrations
+  Dir['src/integrations/*.rb'].each { |mod| load mod }
+
   # Load non-Discordrb modules
   Dir['src/modules/*.rb'].each { |mod| load mod }
 

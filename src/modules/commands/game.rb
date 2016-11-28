@@ -10,7 +10,7 @@ module Bot
           'Use `dah.end` to end an active game that you host.'
         else
           # Create channels
-          game_id = Database::Game.count + 1
+          game_id = Database::DB[:sqlite_sequence].where(name: 'games').first[:seq] + 1
           channels = {
             text: event.server.create_channel("game_#{game_id}", 0),
             voice: event.server.create_channel("game_#{game_id}", 2)
@@ -151,6 +151,44 @@ module Bot
           end
         end
         nil
+      end
+
+      command([:max_points, :points],
+              description: 'sets the winning number of points for your game',
+              usage: "#{BOT.prefix}max_points (a number)",
+              max_args: 1) do |event, number|
+        game = Database::Game.owner(event.user.id)
+        next '❎ You don\'t own any active games..' if game.nil?
+
+        next "This game is set to continue until someone gets #{game.max_points} points." unless number
+
+        number = number.to_i
+        next '❎ You must specify a number greater than zero!' if number <= 0
+
+        if game.started
+          max = game.players.collect(&:score).max + 1
+          next "❎ You must specify a number greater than the highest score right now. (#{max} or greater)" if number < max
+        end
+
+        game.update max_points: number
+        '☑️'
+      end
+
+      command(:tts, description: 'toggles the bot\'s usage of tts when displaying the winning card') do |event|
+        game = Database::Game.owner(event.user.id)
+        next '❎ You don\'t own any active games..' if game.nil?
+
+        game.update use_tts: !game.use_tts
+
+        "**TTS** #{game.use_tts ? '👍' : '👎'}"
+      end
+
+      command(:score, description: 'displays your current score') do |event|
+        game = Database::Game.owner(event.user.id)
+        next '❎ You don\'t own any active games..' if game.nil?
+
+        player = game.players.find { |p| p.discord_id == event.user.id }
+        "Your score in `#{game.name}` is: `#{player.score}`"
       end
 
       # Starts a game
